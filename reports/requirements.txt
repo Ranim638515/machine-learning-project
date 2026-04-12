@@ -1,0 +1,49 @@
+# =============================================================================
+# BASE - Obligatoire pour tous les pipelines
+# =============================================================================
+pandas>=1.5.0
+numpy>=1.21.0
+scikit-learn>=1.3.0
+
+# =============================================================================
+# NLP - Traitement du texte (optionnel mais recommandé)
+# =============================================================================
+nltk>=3.8.0
+# OU spacy (plus rapide et moderne, choisir l'un ou l'autre ou les deux)
+# spacy>=3.7.0
+# python -m spacy download en_core_web_sm
+
+# =============================================================================
+# COMPUTER VISION - Traitement des images (optionnel)
+# =============================================================================
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# =============================================================================
+# FEATURE ENGINEERING AVANCÉ (optionnel)
+# =============================================================================
+category-encoders>=2.6.0  # Pour TargetEncoder, CatBoostEncoder, etc.
+feature-engine>=1.6.0     # Alternative aux transformers custom
+
+# =============================================================================
+# OPTIMISATION & UTILITAIRES (optionnel mais recommandé)
+# =============================================================================
+joblib>=1.3.0             # Sauvegarde des pipelines
+pyarrow>=12.0.0           # Lecture/écriture Parquet (plus rapide que CSV)
+openpyxl>=3.1.0           # Lecture Excel (.xlsx)
+
+# =============================================================================
+# DÉVELOPPEMENT & DEBUGGING (optionnel)
+# =============================================================================
+jupyter>=1.0.0
+ipython>=8.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# =============================================================================
+# PRODUCTION & MONITORING (optionnel)
+# =============================================================================
+# mlflow>=2.8.0           # Tracking des expérimentations
+# evidently>=0.4.0        # Détection data drift
+scikit-learn==1.4.2
+joblib

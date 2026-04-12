@@ -1,0 +1,48 @@
+\babel@toc {french}{}\relax 
+\contentsline {section}{\numberline {1}Introduction}{5}{section.1}%
+\contentsline {section}{\numberline {2}Architecture du Pipeline}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Variables RFM (comportement d'achat)}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Variables Produit}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Variables Client}{6}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Étapes du Prétraitement}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Étape 1 — Chargement et Analyse Initiale}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Étape 2 — Nettoyage de Base}{6}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Étape 3 — Valeurs Aberrantes et Sentinelles}{6}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Étape 4 — Formats Inconsistants et Feature Engineering}{7}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Étape 5 — Encodage des Variables Catégorielles}{7}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Étape 6 — Split Train/Test et Normalisation}{7}{subsection.3.6}%
+\contentsline {section}{\numberline {4}Résultats du Prétraitement}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Observations Importantes}{8}{subsection.4.1}%
+\contentsline {section}{\numberline {5}Clustering K-Means}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Objectif}{8}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Features Utilisées}{8}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Sélection du Nombre de Clusters — Méthode Elbow}{8}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Résultats K-Means avec k=4}{9}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Interprétation des Clusters}{9}{subsection.5.5}%
+\contentsline {section}{\numberline {6}Identification et Traitement du Data Leakage}{10}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Type 1 — Leakage Direct (colonnes calculées depuis Churn)}{10}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Type 2 — Leakage Indirect (corrélations artificielles)}{10}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Impact de la Correction}{11}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Classification — Prédiction du Churn}{11}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Objectif}{11}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Gestion du Déséquilibre}{11}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Importance des Features (XGBoost)}{13}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Interprétation}{13}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Régression — Prédiction de MonetaryTotal}{13}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Objectif}{13}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Colonnes Exclues}{13}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Résultats}{14}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Interprétation des Résultats}{14}{subsection.8.4}%
+\contentsline {section}{\numberline {9}Prédiction et Déploiement des Modèles}{14}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Architecture du Script \texttt {predict.py}}{14}{subsection.9.1}%
+\contentsline {subsubsection}{\numberline {9.1.1}Seuils de Risque Churn}{15}{subsubsection.9.1.1}%
+\contentsline {subsection}{\numberline {9.2}Résultats sur le Jeu de Test (875 Clients)}{16}{subsection.9.2}%
+\contentsline {subsubsection}{\numberline {9.2.1}Résultats de la Classification}{16}{subsubsection.9.2.1}%
+\contentsline {subsubsection}{\numberline {9.2.2}Résultats de la Segmentation}{17}{subsubsection.9.2.2}%
+\contentsline {subsubsection}{\numberline {9.2.3}Résultats de la Régression}{17}{subsubsection.9.2.3}%
+\contentsline {subsection}{\numberline {9.3}Comparaison Churn Réel vs Prédit}{18}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Rapport Combiné — Extrait \texttt {predictions.csv}}{18}{subsection.9.4}%
+\contentsline {subsection}{\numberline {9.5}Exemple de Prédiction pour un Nouveau Client}{19}{subsection.9.5}%
+\contentsline {subsection}{\numberline {9.6}Limites et Recommandations pour le Déploiement}{20}{subsection.9.6}%
+\contentsline {subsubsection}{\numberline {9.6.1}Limites Identifiées}{20}{subsubsection.9.6.1}%
+\contentsline {subsubsection}{\numberline {9.6.2}Recommandations pour le Déploiement en Production}{20}{subsubsection.9.6.2}%

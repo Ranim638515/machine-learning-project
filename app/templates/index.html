@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prédiction Churn — Retail ML</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #1a237e, #283593);
+                  color: white; padding: 2rem 0; margin-bottom: 2rem; }
+        .card { border: none; border-radius: 12px;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .btn-predict { background: #1a237e; color: white;
+                       border-radius: 8px; padding: 12px 32px;
+                       font-weight: 600; font-size: 1.1rem; }
+        .btn-predict:hover { background: #283593; color: white; }
+        .section-title { color: #1a237e; font-weight: 600;
+                         border-bottom: 2px solid #e8eaf6;
+                         padding-bottom: 8px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="header text-center">
+    <h1 class="fw-bold">Analyse Comportementale Clientèle</h1>
+    <p class="lead mb-0">Prédiction du Churn — Modèle XGBoost</p>
+</div>
+
+<div class="container">
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Navigation -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="text-muted">Saisie des données client</h4>
+                <a href="/dashboard" class="btn btn-outline-primary">
+                    Tableau de bord
+                </a>
+            </div>
+
+            <form method="POST" action="/predict">
+            <div class="row g-4">
+
+                <!-- Comportement d'achat RFM -->
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="section-title">Comportement d'achat (RFM)</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Recency (valeur normalisée)</label>
+                            <input type="number" step="0.01" name="recency"
+                                   class="form-control" value="-0.5"
+                                   placeholder="-0.5 = actif récemment">
+                            <small class="text-muted">Valeur StandardScaler — négatif = actif</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Frequency (commandes)</label>
+                            <input type="number" step="0.01" name="frequency"
+                                   class="form-control" value="0.2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">MonetaryTotal (normalisé)</label>
+                            <input type="number" step="0.01" name="monetary_total"
+                                   class="form-control" value="0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">MonetaryAvg (normalisé)</label>
+                            <input type="number" step="0.01" name="monetary_avg"
+                                   class="form-control" value="-0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">MonetaryStd (normalisé)</label>
+                            <input type="number" step="0.01" name="monetary_std"
+                                   class="form-control" value="-0.2">
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">MonetaryMin</label>
+                                <input type="number" step="0.01" name="monetary_min"
+                                       class="form-control" value="0.0">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">MonetaryMax</label>
+                                <input type="number" step="0.01" name="monetary_max"
+                                       class="form-control" value="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Données produits et transactions -->
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="section-title">Transactions et Produits</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Total Transactions</label>
+                            <input type="number" step="0.01" name="total_transactions"
+                                   class="form-control" value="0.2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Unique Invoices</label>
+                            <input type="number" step="0.01" name="unique_invoices"
+                                   class="form-control" value="0.2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Unique Products</label>
+                            <input type="number" step="0.01" name="unique_products"
+                                   class="form-control" value="0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">TotalQuantity</label>
+                            <input type="number" step="0.01" name="total_quantity"
+                                   class="form-control" value="0.2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">ReturnRatio</label>
+                            <input type="number" step="0.01" name="return_ratio"
+                                   class="form-control" value="-0.1" min="0" max="1">
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Annulations</label>
+                                <input type="number" step="0.01" name="cancelled"
+                                       class="form-control" value="-0.2">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Avg Jours/Achat</label>
+                                <input type="number" step="0.01" name="avg_days"
+                                       class="form-control" value="0.3">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profil client -->
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="section-title">Profil Client</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Âge (normalisé)</label>
+                            <input type="number" step="0.01" name="age"
+                                   class="form-control" value="0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Support Tickets</label>
+                            <input type="number" step="0.01" name="support_tickets"
+                                   class="form-control" value="-0.3">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Satisfaction Score</label>
+                            <input type="number" step="0.01" name="satisfaction"
+                                   class="form-control" value="0.4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">First Purchase Days Ago</label>
+                            <input type="number" step="0.01" name="first_purchase"
+                                   class="form-control" value="-0.3">
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Jour préféré</label>
+                                <input type="number" step="0.01" name="preferred_day"
+                                       class="form-control" value="0.0">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Heure préférée</label>
+                                <input type="number" step="0.01" name="preferred_hour"
+                                       class="form-control" value="0.2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Autres features -->
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="section-title">Autres Indicateurs</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Weekend Purchase Ratio</label>
+                            <input type="number" step="0.01" name="weekend_ratio"
+                                   class="form-control" value="-0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Avg Lines Per Invoice</label>
+                            <input type="number" step="0.01" name="avg_lines"
+                                   class="form-control" value="0.0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Unique Descriptions</label>
+                            <input type="number" step="0.01" name="unique_desc"
+                                   class="form-control" value="0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Avg Products/Transaction</label>
+                            <input type="number" step="0.01" name="avg_products"
+                                   class="form-control" value="0.0">
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Qty Négative</label>
+                                <input type="number" step="0.01" name="neg_qty"
+                                       class="form-control" value="-0.2">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-semibold">Zero Price</label>
+                                <input type="number" step="0.01" name="zero_price"
+                                       class="form-control" value="-0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bouton prédire -->
+            <div class="text-center my-4">
+                <button type="submit" class="btn btn-predict px-5">
+                    Analyser ce client
+                </button>
+            </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

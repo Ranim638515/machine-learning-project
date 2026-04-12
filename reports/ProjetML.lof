@@ -1,0 +1,14 @@
+\babel@toc {french}{}\relax 
+\contentsline {figure}{\numberline {1}{\ignorespaces Pipeline complet de prétraitement}}{5}{figure.1}%
+\contentsline {figure}{\numberline {2}{\ignorespaces Traitement des valeurs aberrantes - Méthode IQR}}{6}{figure.2}%
+\contentsline {figure}{\numberline {3}{\ignorespaces éviter le data leakage}}{7}{figure.3}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Courbe d'Elbow — sélection du k optimal (coude à k=4)}}{9}{figure.4}%
+\contentsline {figure}{\numberline {5}{\ignorespaces Segmentation K-Means — Recency vs MonetaryTotal (k=4)}}{10}{figure.5}%
+\contentsline {figure}{\numberline {6}{\ignorespaces Matrices de confusion des trois modèles}}{12}{figure.6}%
+\contentsline {figure}{\numberline {7}{\ignorespaces Top 10 des features les plus importantes pour la prédiction du churn}}{13}{figure.7}%
+\contentsline {figure}{\numberline {8}{\ignorespaces Régression Random Forest — Valeurs réelles vs prédites. La droite rouge représente la prédiction parfaite. Les points s'éloignant de la diagonale correspondent aux clients VIP.}}{14}{figure.8}%
+\contentsline {figure}{\numberline {9}{\ignorespaces Distribution des niveaux de risque Churn sur les 875 clients de test}}{16}{figure.9}%
+\contentsline {figure}{\numberline {10}{\ignorespaces Distribution des probabilités de churn — concentration aux extrêmes (nature synthétique du dataset)}}{16}{figure.10}%
+\contentsline {figure}{\numberline {11}{\ignorespaces Distribution des segments clients K-Means sur les 875 clients de test}}{17}{figure.11}%
+\contentsline {figure}{\numberline {12}{\ignorespaces Distribution des montants prédits par segment (clients avec montant > 0£)}}{18}{figure.12}%
+\contentsline {figure}{\numberline {13}{\ignorespaces Comparaison churn réel vs prédit — distributions quasi-identiques confirmant l'accuracy de 99.77\%}}{18}{figure.13}%

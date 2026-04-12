@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résultats — Prédiction Churn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; }
+        .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 1.5rem 0; margin-bottom: 2rem; }
+        .card { border: none; border-radius: 14px; box-shadow: 0 2px 14px rgba(0,0,0,0.07); }
+        .result-main { border-radius: 14px; padding: 2.5rem 2rem; text-align: center; }
+        .churn-label { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.3rem; }
+        .proba-wrap { background: #e9ecef; border-radius: 12px; height: 22px; overflow: hidden; max-width: 420px; margin: 0 auto; }
+        .proba-fill { height: 100%; border-radius: 12px; transition: width 1s ease; }
+        .risk-pill { display: inline-block; padding: 6px 24px; border-radius: 24px; font-size: 1.05rem; font-weight: 700; margin-top: 12px; }
+        .metric-val { font-size: 2rem; font-weight: 700; }
+        .metric-lbl { color: #6c757d; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+        .section-title { font-size: 1rem; font-weight: 600; color: #1a237e; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="header text-center">
+    <h1 class="fw-bold mb-1">Résultats de l'Analyse</h1>
+    <p class="lead mb-0 opacity-75">Prédiction Churn — Modèle XGBoost</p>
+</div>
+
+<div class="container pb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            {% if résultats %}
+
+            <!-- Résultat principal -->
+            <div class="card mb-4">
+                {% if résultats.couleur == 'success' %}
+                    <div class="result-main" style="background:#f0fdf4;">
+                        <div class="churn-label text-success">{{ résultats.churn_label }}</div>
+                {% elif résultats.couleur == 'warning' %}
+                    <div class="result-main" style="background:#fefce8;">
+                        <div class="churn-label text-warning">{{ résultats.churn_label }}</div>
+                {% elif résultats.couleur == 'orange' %}
+                    <div class="result-main" style="background:#fff7ed;">
+                        <div class="churn-label" style="color:#c2410c;">{{ résultats.churn_label }}</div>
+                {% else %}
+                    <div class="result-main" style="background:#fef2f2;">
+                        <div class="churn-label text-danger">{{ résultats.churn_label }}</div>
+                {% endif %}
+
+                        <p class="text-muted mb-3">Statut prédit du client</p>
+
+                        <!-- Barre probabilité -->
+                        <div class="mb-1">
+                            <div class="d-flex justify-content-between mb-1" style="max-width:420px;margin:0 auto;">
+                                <small class="text-muted">Probabilité de churn</small>
+                                <strong>{{ résultats.churn_proba }}%</strong>
+                            </div>
+                            <div class="proba-wrap">
+                                {% if résultats.couleur == 'success' %}
+                                    <div class="proba-fill" style="width:{{ résultats.churn_proba }}%;background:#16a34a;"></div>
+                                {% elif résultats.couleur == 'warning' %}
+                                    <div class="proba-fill" style="width:{{ résultats.churn_proba }}%;background:#d97706;"></div>
+                                {% elif résultats.couleur == 'orange' %}
+                                    <div class="proba-fill" style="width:{{ résultats.churn_proba }}%;background:#c2410c;"></div>
+                                {% else %}
+                                    <div class="proba-fill" style="width:{{ résultats.churn_proba }}%;background:#dc2626;"></div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Badge risque -->
+                        {% if résultats.risque == 'Faible' %}
+                            <span class="risk-pill" style="background:#dcfce7;color:#15803d;">Risque Faible</span>
+                        {% elif résultats.risque == 'Moyen' %}
+                            <span class="risk-pill" style="background:#fef9c3;color:#854d0e;">Risque Moyen</span>
+                        {% elif résultats.risque == 'Élevé' %}
+                            <span class="risk-pill" style="background:#ffedd5;color:#c2410c;">Risque Élevé</span>
+                        {% else %}
+                            <span class="risk-pill" style="background:#fee2e2;color:#b91c1c;">Risque Critique</span>
+                        {% endif %}
+
+                    </div>
+                </div>
+
+            <!-- Métriques secondaires -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card p-3 text-center h-100">
+                        <div class="metric-val text-primary">{{ résultats.montant_predit }} £</div>
+                        <div class="metric-lbl">Montant prédit</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 text-center h-100">
+                        {% if résultats.segment == 'VIP' %}
+                            <div class="metric-val" style="color:#6d28d9;font-size:1.6rem;">{{ résultats.segment }}</div>
+                        {% elif résultats.segment == 'Champions' %}
+                            <div class="metric-val text-warning" style="font-size:1.6rem;">{{ résultats.segment }}</div>
+                        {% elif résultats.segment == 'Réguliers' %}
+                            <div class="metric-val text-primary" style="font-size:1.6rem;">{{ résultats.segment }}</div>
+                        {% else %}
+                            <div class="metric-val text-danger" style="font-size:1.6rem;">{{ résultats.segment }}</div>
+                        {% endif %}
+                        <div class="metric-lbl">Segment RFM</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 text-center h-100">
+                        <div class="metric-val text-secondary">{{ résultats.churn_proba }}%</div>
+                        <div class="metric-lbl">Probabilité churn</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommandation -->
+            <div class="card mb-4 p-4">
+                <div class="section-title">Recommandation</div>
+                {% if résultats.risque == 'Faible' %}
+                <div class="alert mb-0 rounded-3" style="background:#dcfce7;color:#14532d;border:none;">
+                    <strong>Client stable.</strong> Maintenez la relation avec des offres de fidélisation standard.
+                    Aucune action urgente requise.
+                </div>
+                {% elif résultats.risque == 'Moyen' %}
+                <div class="alert mb-0 rounded-3" style="background:#fef9c3;color:#713f12;border:none;">
+                    <strong>Surveillance recommandée.</strong> Proposez une offre personnalisée dans les 30 jours.
+                    Analysez les habitudes d'achat récentes.
+                </div>
+                {% elif résultats.risque == 'Élevé' %}
+                <div class="alert mb-0 rounded-3" style="background:#ffedd5;color:#7c2d12;border:none;">
+                    <strong>Intervention conseillée.</strong> Contactez ce client rapidement avec une offre de rétention.
+                    Risque de départ dans les prochaines semaines.
+                </div>
+                {% else %}
+                <div class="alert mb-0 rounded-3" style="background:#fee2e2;color:#7f1d1d;border:none;">
+                    <strong>Action immédiate requise !</strong> Ce client présente un risque critique de départ.
+                    Contactez-le en priorité avec une offre exclusive de rétention.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Interprétation segment -->
+            <div class="card mb-4 p-4">
+                <div class="section-title">Profil client — Segment {{ résultats.segment }}</div>
+                {% if résultats.segment == 'Dormants' %}
+                <p class="text-muted mb-0">Client inactif depuis longtemps. Recency élevée, faible fréquence d'achat.
+                Segment le plus à risque de churn définitif.</p>
+                {% elif résultats.segment == 'Réguliers' %}
+                <p class="text-muted mb-0">Client au comportement d'achat moyen et équilibré.
+                Représente le cœur de la clientèle (73.4% des clients).</p>
+                {% elif résultats.segment == 'Champions' %}
+                <p class="text-muted mb-0">Client très actif avec une fréquence et des montants élevés.
+                Client premium à fidéliser en priorité (top 1.3%).</p>
+                {% else %}
+                <p class="text-muted mb-0">Client ultra-premium aux dépenses extrêmes.
+                Segment VIP rare (0.1%) — traitement personnalisé indispensable.</p>
+                {% endif %}
+            </div>
+
+            <!-- Boutons navigation -->
+            <div class="d-flex gap-3 justify-content-center">
+                <a href="/" class="btn btn-outline-primary px-4 fw-semibold">Nouvelle prédiction</a>
+                <a href="/dashboard" class="btn btn-primary px-4 fw-semibold">Tableau de bord</a>
+            </div>
+
+            {% else %}
+            <div class="card p-5 text-center">
+                <h4 class="text-muted">Aucun résultat disponible</h4>
+                <a href="/" class="btn btn-primary mt-3">Retour au formulaire</a>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

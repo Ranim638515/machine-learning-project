@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Retail ML</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; }
+        .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 2rem 0; margin-bottom: 2rem; }
+        .card { border: none; border-radius: 14px; box-shadow: 0 2px 14px rgba(0,0,0,0.07); }
+        .stat-card { text-align: center; padding: 1.8rem 1rem; }
+        .stat-value { font-size: 2.5rem; font-weight: 700; line-height: 1; }
+        .stat-label { color: #6c757d; font-size: 0.85rem; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .section-title { font-size: 1rem; font-weight: 600; color: #1a237e; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; margin-bottom: 16px; }
+        .prog-wrap { background: #e9ecef; border-radius: 8px; height: 26px; overflow: hidden; }
+        .prog-fill { height: 100%; border-radius: 8px; display: flex; align-items: center; padding-left: 10px; font-size: 0.82rem; font-weight: 600; color: white; transition: width 0.6s ease; }
+        .pill { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="header text-center">
+    <h1 class="fw-bold mb-1">Tableau de Bord</h1>
+    <p class="lead mb-0 opacity-75">Analyse comportementale clientèle — 875 clients</p>
+</div>
+
+<div class="container pb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="text-muted mb-0">Statistiques globales des prédictions</h5>
+        <a href="/" class="btn btn-outline-primary fw-semibold">+ Nouvelle prédiction</a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-warning rounded-3 mb-4">
+        <strong>Attention :</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if stats %}
+
+    <!-- KPIs -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-value text-primary">{{ stats.total_clients }}</div>
+                <div class="stat-label">Clients analysés</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-value text-danger">{{ stats.nb_churnes }}</div>
+                <div class="stat-label">Clients à risque</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-value text-success">{{ stats.nb_fideles }}</div>
+                <div class="stat-label">Clients fidèles</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-value text-warning">{{ stats.taux_churn }}%</div>
+                <div class="stat-label">Taux de churn</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monétaire -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card stat-card">
+                <div class="stat-value text-info" style="font-size:2rem;">{{ stats.montant_moyen }} £</div>
+                <div class="stat-label">Montant moyen prédit / client</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card stat-card">
+                <div class="stat-value text-info" style="font-size:2rem;">{{ stats.montant_total }} £</div>
+                <div class="stat-label">Chiffre d'affaires total prédit</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Segments + Risques -->
+    <div class="row g-4 mb-4">
+
+        <div class="col-md-6">
+            <div class="card p-4 h-100">
+                <div class="section-title">Répartition par segment RFM</div>
+                {% for segment, count in stats.segments.items() %}
+                {% set pct = (count / stats.total_clients * 100) | round(1) %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        {% if segment == 'Réguliers' %}
+                            <span class="pill" style="background:#dbeafe;color:#1d4ed8;">{{ segment }}</span>
+                        {% elif segment == 'Dormants' %}
+                            <span class="pill" style="background:#fee2e2;color:#b91c1c;">{{ segment }}</span>
+                        {% elif segment == 'Champions' %}
+                            <span class="pill" style="background:#fef9c3;color:#854d0e;">{{ segment }}</span>
+                        {% else %}
+                            <span class="pill" style="background:#f3e8ff;color:#6d28d9;">{{ segment }}</span>
+                        {% endif %}
+                        <small class="text-muted">{{ count }} ({{ pct }}%)</small>
+                    </div>
+                    <div class="prog-wrap">
+                        {% if segment == 'Réguliers' %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#1d4ed8;">{{ pct }}%</div>
+                        {% elif segment == 'Dormants' %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#b91c1c;">{{ pct }}%</div>
+                        {% elif segment == 'Champions' %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#d97706;color:#1a1a1a;">{{ pct }}%</div>
+                        {% else %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#6d28d9;">{{ pct }}%</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card p-4 h-100">
+                <div class="section-title">Répartition par niveau de risque</div>
+                {% for risque, count in stats.risques.items() %}
+                {% set pct = (count / stats.total_clients * 100) | round(1) %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        {% if risque == 'Faible' %}
+                            <span class="pill" style="background:#dcfce7;color:#15803d;">{{ risque }}</span>
+                        {% elif risque == 'Moyen' %}
+                            <span class="pill" style="background:#fef9c3;color:#854d0e;">{{ risque }}</span>
+                        {% elif risque == 'Élevé' %}
+                            <span class="pill" style="background:#ffedd5;color:#c2410c;">{{ risque }}</span>
+                        {% else %}
+                            <span class="pill" style="background:#fee2e2;color:#b91c1c;">{{ risque }}</span>
+                        {% endif %}
+                        <small class="text-muted">{{ count }} ({{ pct }}%)</small>
+                    </div>
+                    <div class="prog-wrap">
+                        {% if risque == 'Faible' %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#15803d;">{{ pct }}%</div>
+                        {% elif risque == 'Moyen' %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#d97706;color:#1a1a1a;">{{ pct }}%</div>
+                        {% elif risque == 'Élevé' %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#c2410c;">{{ pct }}%</div>
+                        {% else %}
+                            <div class="prog-fill" style="width:{{ pct }}%;background:#b91c1c;">{{ pct }}%</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modèles -->
+    <div class="card p-4">
+        <div class="section-title">Modèles ML utilisés</div>
+        <div class="row g-3 text-center">
+            <div class="col-md-4">
+                <div class="p-3 rounded-3" style="background:#eff6ff;">
+                    <div class="fw-bold text-primary mb-1">XGBClassifier</div>
+                    <small class="text-muted d-block mb-2">Prédiction Churn (0/1)</small>
+                    <span class="badge bg-primary">Accuracy 99.77%</span>
+                    <span class="badge bg-primary ms-1">F1 = 0.9977</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 rounded-3" style="background:#f0fdf4;">
+                    <div class="fw-bold text-success mb-1">RandomForestRegressor</div>
+                    <small class="text-muted d-block mb-2">Prédiction MonetaryTotal</small>
+                    <span class="badge bg-success">R² = 0.6855</span>
+                    <span class="badge bg-success ms-1">MAE = 688£</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 rounded-3" style="background:#fefce8;">
+                    <div class="fw-bold text-warning mb-1">K-Means k=4</div>
+                    <small class="text-muted d-block mb-2">Segmentation RFM</small>
+                    <span class="badge bg-warning text-dark">Silhouette = 0.6041</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card p-5 text-center">
+        <h4 class="text-muted mb-3">Aucune donnée disponible</h4>
+        <p class="text-muted mb-3">Lancez d'abord le script de prédiction :</p>
+        <code class="bg-light p-2 rounded d-block mb-4" style="font-size:1rem;">python src/predict.py</code>
+        <a href="/" class="btn btn-primary">Faire une prédiction unitaire</a>
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
