@@ -1,14 +1,7 @@
 venv/
-*.log
-*.aux
-*.toc
-*.out
-*.lof
-*.lot
-*.gz
+
 
 *.csv
-*.pkl
-*.pdf
+
 
 __pycache__/
