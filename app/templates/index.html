@@ -1,234 +1,951 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prédiction Churn — Retail ML</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f8f9fa; }
-        .header { background: linear-gradient(135deg, #1a237e, #283593);
-                  color: white; padding: 2rem 0; margin-bottom: 2rem; }
-        .card { border: none; border-radius: 12px;
-                box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-        .btn-predict { background: #1a237e; color: white;
-                       border-radius: 8px; padding: 12px 32px;
-                       font-weight: 600; font-size: 1.1rem; }
-        .btn-predict:hover { background: #283593; color: white; }
-        .section-title { color: #1a237e; font-weight: 600;
-                         border-bottom: 2px solid #e8eaf6;
-                         padding-bottom: 8px; margin-bottom: 16px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChurnSight — Analyse Clientèle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #f5f4f0;
+      --surface:   #ffffff;
+      --card:      #ffffff;
+      --border:    rgba(0,0,0,0.08);
+      --border-md: rgba(0,0,0,0.14);
+      --accent:    #6c47ff;
+      --accent-lt: #ede9ff;
+      --accent-dk: #4a2fd4;
+      --green:     #16a34a;
+      --green-lt:  #dcfce7;
+      --red:       #dc2626;
+      --red-lt:    #fee2e2;
+      --amber:     #d97706;
+      --amber-lt:  #fef3c7;
+      --orange:    #ea580c;
+      --orange-lt: #ffedd5;
+      --text:      #111110;
+      --text-2:    #5f5e5a;
+      --text-3:    #9d9c98;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Inter', sans-serif;
+      --radius:    10px;
+      --radius-lg: 16px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .logo em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .status-pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 99px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-pill.ok {
+      background: var(--green-lt);
+      color: var(--green);
+    }
+
+    .status-pill.ok .dot { background: var(--green); }
+
+    .status-pill.demo {
+      background: var(--amber-lt);
+      color: var(--amber);
+    }
+
+    .status-pill.demo .dot { background: var(--amber); }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── DEMO BANNER ── */
+    .demo-banner {
+      background: var(--amber-lt);
+      border: 1px solid rgba(217,119,6,0.2);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--amber);
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 3px;
+      width: fit-content;
+      margin-bottom: 2rem;
+    }
+
+    .tab-btn {
+      padding: 7px 18px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-2);
+      transition: all 0.15s;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .tab-btn:hover:not(.active) {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      margin-bottom: 1.75rem;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      margin: 1.75rem 0 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── FORM GRID ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .field-group input {
+      background: var(--surface);
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -moz-appearance: textfield;
+    }
+
+    .field-group input::-webkit-outer-spin-button,
+    .field-group input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    .field-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108,71,255,0.12);
+    }
+
+    /* ── BUTTONS ── */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 20px;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-dk); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--text-2);
+      border: 1px solid var(--border-md);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── SPINNER ── */
+    .spinner {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULTS ── */
+    #results-panel {
+      display: none;
+      margin-top: 2rem;
+      animation: fadeUp 0.3s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .results-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2rem 0 1.5rem;
+    }
+
+    .results-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.1rem 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .result-card-accent {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .result-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+      margin-bottom: 0.6rem;
+    }
+
+    .result-value {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .result-sub {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 5px;
+    }
+
+    /* Gauge */
+    .gauge-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 99px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.7s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .badge-faible   { background: var(--green-lt);  color: var(--green); }
+    .badge-moyen    { background: var(--amber-lt);   color: var(--amber); }
+    .badge-elevé    { background: var(--orange-lt);  color: var(--orange); }
+    .badge-critique { background: var(--red-lt);     color: var(--red); }
+
+    /* ── CHURN STATUS ── */
+    .churn-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .churn-icon-box {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* ── BATCH ── */
+    .upload-zone {
+      border: 1.5px dashed var(--border-md);
+      border-radius: var(--radius-lg);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--surface);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-lt);
+    }
+
+    .upload-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--accent-lt);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      font-size: 18px;
+    }
+
+    .upload-zone p { color: var(--text-2); font-size: 13px; }
+    .upload-zone strong { color: var(--text); font-weight: 600; }
+    #file-input { display: none; }
+
+    .batch-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 1.25rem 0;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .stat-val {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+      margin-top: 2px;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th {
+      background: var(--bg);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+
+    .segments-viz {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .seg-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .seg-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 0 1rem; }
+      main { padding: 1.25rem 1rem 3rem; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
 </head>
 <body>
 
-<div class="header text-center">
-    <h1 class="fw-bold">Analyse Comportementale Clientèle</h1>
-    <p class="lead mb-0">Prédiction du Churn — Modèle XGBoost</p>
-</div>
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Churn<em>Sight</em>
+  </div>
+  {% if models_loaded %}
+    <span class="status-pill ok">
+      <span class="dot"></span>
+      Modèles chargés
+    </span>
+  {% else %}
+    <span class="status-pill demo">
+      <span class="dot"></span>
+      Mode démo
+    </span>
+  {% endif %}
+</header>
 
-<div class="container">
+<main>
 
-    {% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
+  {% if not models_loaded %}
+  <div class="demo-banner">
+    <span>⚠</span>
+    <span>Modèles ML non trouvés — prédictions simulées. Lancez <code>python src/train_model.py</code> pour charger les vrais modèles.</span>
+  </div>
+  {% endif %}
 
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('single', this)">Client unique</button>
+    <button class="tab-btn"       onclick="switchTab('batch', this)">Batch CSV</button>
+  </div>
 
-            <!-- Navigation -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="text-muted">Saisie des données client</h4>
-                <a href="/dashboard" class="btn btn-outline-primary">
-                    Tableau de bord
-                </a>
-            </div>
+  <!-- TAB 1 — CLIENT UNIQUE -->
+  <div id="tab-single" class="tab-panel active">
 
-            <form method="POST" action="/predict">
-            <div class="row g-4">
-
-                <!-- Comportement d'achat RFM -->
-                <div class="col-md-6">
-                    <div class="card p-4">
-                        <h5 class="section-title">Comportement d'achat (RFM)</h5>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Recency (valeur normalisée)</label>
-                            <input type="number" step="0.01" name="recency"
-                                   class="form-control" value="-0.5"
-                                   placeholder="-0.5 = actif récemment">
-                            <small class="text-muted">Valeur StandardScaler — négatif = actif</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Frequency (commandes)</label>
-                            <input type="number" step="0.01" name="frequency"
-                                   class="form-control" value="0.2">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">MonetaryTotal (normalisé)</label>
-                            <input type="number" step="0.01" name="monetary_total"
-                                   class="form-control" value="0.1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">MonetaryAvg (normalisé)</label>
-                            <input type="number" step="0.01" name="monetary_avg"
-                                   class="form-control" value="-0.1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">MonetaryStd (normalisé)</label>
-                            <input type="number" step="0.01" name="monetary_std"
-                                   class="form-control" value="-0.2">
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">MonetaryMin</label>
-                                <input type="number" step="0.01" name="monetary_min"
-                                       class="form-control" value="0.0">
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">MonetaryMax</label>
-                                <input type="number" step="0.01" name="monetary_max"
-                                       class="form-control" value="0.1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Données produits et transactions -->
-                <div class="col-md-6">
-                    <div class="card p-4">
-                        <h5 class="section-title">Transactions et Produits</h5>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Total Transactions</label>
-                            <input type="number" step="0.01" name="total_transactions"
-                                   class="form-control" value="0.2">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Unique Invoices</label>
-                            <input type="number" step="0.01" name="unique_invoices"
-                                   class="form-control" value="0.2">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Unique Products</label>
-                            <input type="number" step="0.01" name="unique_products"
-                                   class="form-control" value="0.1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">TotalQuantity</label>
-                            <input type="number" step="0.01" name="total_quantity"
-                                   class="form-control" value="0.2">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">ReturnRatio</label>
-                            <input type="number" step="0.01" name="return_ratio"
-                                   class="form-control" value="-0.1" min="0" max="1">
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">Annulations</label>
-                                <input type="number" step="0.01" name="cancelled"
-                                       class="form-control" value="-0.2">
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">Avg Jours/Achat</label>
-                                <input type="number" step="0.01" name="avg_days"
-                                       class="form-control" value="0.3">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Profil client -->
-                <div class="col-md-6">
-                    <div class="card p-4">
-                        <h5 class="section-title">Profil Client</h5>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Âge (normalisé)</label>
-                            <input type="number" step="0.01" name="age"
-                                   class="form-control" value="0.1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Support Tickets</label>
-                            <input type="number" step="0.01" name="support_tickets"
-                                   class="form-control" value="-0.3">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Satisfaction Score</label>
-                            <input type="number" step="0.01" name="satisfaction"
-                                   class="form-control" value="0.4">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">First Purchase Days Ago</label>
-                            <input type="number" step="0.01" name="first_purchase"
-                                   class="form-control" value="-0.3">
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">Jour préféré</label>
-                                <input type="number" step="0.01" name="preferred_day"
-                                       class="form-control" value="0.0">
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">Heure préférée</label>
-                                <input type="number" step="0.01" name="preferred_hour"
-                                       class="form-control" value="0.2">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Autres features -->
-                <div class="col-md-6">
-                    <div class="card p-4">
-                        <h5 class="section-title">Autres Indicateurs</h5>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Weekend Purchase Ratio</label>
-                            <input type="number" step="0.01" name="weekend_ratio"
-                                   class="form-control" value="-0.1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Avg Lines Per Invoice</label>
-                            <input type="number" step="0.01" name="avg_lines"
-                                   class="form-control" value="0.0">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Unique Descriptions</label>
-                            <input type="number" step="0.01" name="unique_desc"
-                                   class="form-control" value="0.1">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Avg Products/Transaction</label>
-                            <input type="number" step="0.01" name="avg_products"
-                                   class="form-control" value="0.0">
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">Qty Négative</label>
-                                <input type="number" step="0.01" name="neg_qty"
-                                       class="form-control" value="-0.2">
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label fw-semibold">Zero Price</label>
-                                <input type="number" step="0.01" name="zero_price"
-                                       class="form-control" value="-0.1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Bouton prédire -->
-            <div class="text-center my-4">
-                <button type="submit" class="btn btn-predict px-5">
-                    Analyser ce client
-                </button>
-            </div>
-
-            </form>
-        </div>
+    <div class="page-header">
+      <p class="page-title">Analyser un client</p>
+      <p class="page-sub">Renseignez les informations du client pour obtenir une prédiction de churn.</p>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="section-label">Transactions & monétaire</div>
+    <div class="form-grid">
+      <div class="field-group">
+        <label>Frequency</label>
+        <input type="number" id="f_frequency" value="12" step="1" min="1" placeholder="Nb commandes">
+      </div>
+      <div class="field-group">
+        <label>MonetaryTotal (£)</label>
+        <input type="number" id="f_monetary_total" value="850" step="10" placeholder="Total dépensé">
+      </div>
+      <div class="field-group">
+        <label>TotalQuantity</label>
+        <input type="number" id="f_total_quantity" value="40" step="1" placeholder="Qté totale articles">
+      </div>
+      <div class="field-group">
+        <label>Annulations</label>
+        <input type="number" id="f_cancelled_trans" value="1" step="1" min="0" placeholder="Transactions annulées">
+      </div>
+      <div class="field-group">
+        <label>ReturnRatio (0 – 1)</label>
+        <input type="number" id="f_return_ratio" value="0.05" step="0.01" min="0" max="1" placeholder="Taux retour">
+      </div>
+    </div>
+
+    <div class="section-label">Comportement temporel</div>
+    <div class="form-grid">
+      <div class="field-group">
+        <label>Recency (jours)</label>
+        <input type="number" id="f_recency" value="30" step="1" min="0" placeholder="Depuis dernier achat">
+      </div>
+      <div class="field-group">
+        <label>Délai moyen (jours)</label>
+        <input type="number" id="f_avg_days_between" value="25" step="1" min="0" placeholder="Entre achats">
+      </div>
+    </div>
+
+    <div class="section-label">Profil client</div>
+    <div class="form-grid">
+      <div class="field-group">
+        <label>Âge</label>
+        <input type="number" id="f_age" value="35" step="1" min="18" max="90" placeholder="Âge du client">
+      </div>
+      <div class="field-group">
+        <label>Satisfaction (1 – 5)</label>
+        <input type="number" id="f_satisfaction" value="3.5" step="0.5" min="1" max="5" placeholder="Note">
+      </div>
+      <div class="field-group">
+        <label>Tickets support</label>
+        <input type="number" id="f_support_tickets" value="1" step="1" min="0" placeholder="Nb tickets">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-predict" onclick="runPrediction()">
+        <span id="btn-icon">→</span>
+        <span id="btn-text">Analyser</span>
+      </button>
+      <button class="btn btn-ghost" onclick="fillDemo()">Exemple démo</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results-panel">
+      <div class="results-divider"></div>
+      <p class="results-title">Résultats de l'analyse</p>
+
+      <div class="results-grid">
+
+        <!-- Churn -->
+        <div class="result-card" id="card-churn">
+          <div class="result-card-accent" id="accent-churn" style="background:#e5e4e0;"></div>
+          <div class="result-label">Prédiction churn</div>
+          <div class="churn-status">
+            <div class="churn-icon-box" id="churn-icon-box" style="background:#f1efe8;">
+              <span id="r_churn_icon" style="font-size:14px;">—</span>
+            </div>
+            <span id="r_churn_text" class="result-value" style="font-size:18px;">—</span>
+          </div>
+          <div class="gauge-bar" style="margin-top:12px;">
+            <div id="r_gauge" class="gauge-fill" style="width:0%;background:#9d9c98;"></div>
+          </div>
+        </div>
+
+        <!-- Probabilité -->
+        <div class="result-card">
+          <div class="result-card-accent" style="background:#fac775;"></div>
+          <div class="result-label">Probabilité de churn</div>
+          <div id="r_prob" class="result-value" style="color:#ba7517;">—</div>
+          <div class="result-sub">
+            Niveau de risque : <span id="r_risk_badge">—</span>
+          </div>
+        </div>
+
+        <!-- Montant -->
+        <div class="result-card">
+          <div class="result-card-accent" style="background:#5dcaa5;"></div>
+          <div class="result-label">Montant prédit</div>
+          <div id="r_monetary" class="result-value" style="color:#0f6e56;">—</div>
+          <div class="result-sub">MonetaryTotal estimé</div>
+        </div>
+
+        <!-- Segment -->
+        <div class="result-card">
+          <div class="result-card-accent" style="background:#afa9ec;"></div>
+          <div class="result-label">Segment RFM</div>
+          <div id="r_segment" class="result-value" style="font-size:20px;color:#534ab7;">—</div>
+          <div id="r_segment_desc" class="result-sub">—</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2 — BATCH -->
+  <div id="tab-batch" class="tab-panel">
+
+    <div class="page-header">
+      <p class="page-title">Prédiction en lot</p>
+      <p class="page-sub">Importez un fichier CSV pour analyser plusieurs clients simultanément.</p>
+    </div>
+
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".csv" onchange="handleFileSelect(this)">
+      <div class="upload-icon">📂</div>
+      <p><strong>Cliquez ou déposez votre CSV ici</strong></p>
+      <p style="margin-top:4px;font-size:12px;">Format : colonnes features ML</p>
+    </div>
+
+    <div id="batch-results" style="display:none;margin-top:1.5rem;">
+      <p class="results-title" id="batch-title">—</p>
+      <div class="batch-stats" id="batch-stats"></div>
+      <div id="batch-segments" style="margin-bottom:1.25rem;"></div>
+      <div class="table-wrap" id="batch-table-wrap"></div>
+    </div>
+
+    <div id="batch-loading" style="display:none;text-align:center;padding:3rem;color:var(--text-3);">
+      <div style="width:28px;height:28px;border:2px solid var(--border-md);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 12px;"></div>
+      <p style="font-size:13px;">Analyse en cours…</p>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadBatch(file);
+});
+
+function handleFileSelect(input) {
+  if (input.files[0]) uploadBatch(input.files[0]);
+}
+
+function fillDemo() {
+  const demo = {
+    f_frequency: 12, f_monetary_total: 850, f_total_quantity: 40,
+    f_cancelled_trans: 1, f_return_ratio: 0.05,
+    f_recency: 30, f_avg_days_between: 25,
+    f_age: 35, f_satisfaction: 3.5, f_support_tickets: 1
+  };
+  Object.entries(demo).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+}
+
+async function runPrediction() {
+  const btn  = document.getElementById('btn-predict');
+  const icon = document.getElementById('btn-icon');
+  const txt  = document.getElementById('btn-text');
+
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spinner"></span>';
+  txt.textContent = 'Analyse…';
+
+  const payload = {
+    Frequency:               parseFloat(document.getElementById('f_frequency').value)       || 1,
+    MonetaryTotal:           parseFloat(document.getElementById('f_monetary_total').value)  || 0,
+    TotalQuantity:           parseFloat(document.getElementById('f_total_quantity').value)  || 0,
+    CancelledTransactions:   parseFloat(document.getElementById('f_cancelled_trans').value) || 0,
+    ReturnRatio:             parseFloat(document.getElementById('f_return_ratio').value)    || 0,
+    Recency:                 parseFloat(document.getElementById('f_recency').value)         || 0,
+    AvgDaysBetweenPurchases: parseFloat(document.getElementById('f_avg_days_between').value)|| 0,
+    Age:                     parseFloat(document.getElementById('f_age').value)             || 35,
+    SatisfactionScore:       parseFloat(document.getElementById('f_satisfaction').value)   || 3,
+    SupportTicketsCount:     parseFloat(document.getElementById('f_support_tickets').value) || 0,
+  };
+
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    displayResults(data);
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+  } finally {
+    btn.disabled = false;
+    icon.textContent = '→';
+    txt.textContent = 'Analyser';
+  }
+}
+
+function displayResults(data) {
+  const panel = document.getElementById('results-panel');
+  panel.style.display = 'block';
+
+  const isChurn = data.churn_prediction === 1;
+
+  // Churn card
+  document.getElementById('r_churn_icon').textContent = isChurn ? '!' : '✓';
+  document.getElementById('r_churn_text').textContent = isChurn ? 'Churné' : 'Fidèle';
+  document.getElementById('r_churn_text').style.color = isChurn ? '#dc2626' : '#16a34a';
+  document.getElementById('accent-churn').style.background = isChurn ? '#f09595' : '#5dcaa5';
+  document.getElementById('churn-icon-box').style.background = isChurn ? '#fee2e2' : '#dcfce7';
+  document.getElementById('r_churn_icon').style.color = isChurn ? '#dc2626' : '#16a34a';
+
+  // Gauge
+  const gauge = document.getElementById('r_gauge');
+  const p = data.churn_probability;
+  gauge.style.width = p + '%';
+  gauge.style.background = p > 75 ? '#e24b4a' : p > 50 ? '#ea580c' : p > 25 ? '#d97706' : '#16a34a';
+
+  document.getElementById('r_prob').textContent = p + '%';
+  document.getElementById('r_prob').style.color = p > 75 ? '#dc2626' : p > 50 ? '#ea580c' : p > 25 ? '#d97706' : '#16a34a';
+
+  const badgeMap = { 'faible':'badge-faible','moyen':'badge-moyen','élevé':'badge-elevé','critique':'badge-critique' };
+  document.getElementById('r_risk_badge').innerHTML =
+    `<span class="badge ${badgeMap[data.churn_risk.toLowerCase()] || ''}">${data.churn_risk}</span>`;
+
+  document.getElementById('r_monetary').textContent = '£' + data.monetary_predicted.toFixed(2);
+
+  const segDesc = {
+    'Champions': 'Très actifs, dépenses élevées',
+    'VIP':       'Ultra-premium, dépenses extrêmes',
+    'Réguliers': 'Comportement équilibré',
+    'Dormants':  'Faible activité récente',
+  };
+  document.getElementById('r_segment').textContent = data.segment;
+  document.getElementById('r_segment_desc').textContent = segDesc[data.segment] || '';
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function uploadBatch(file) {
+  document.getElementById('batch-results').style.display  = 'none';
+  document.getElementById('batch-loading').style.display  = 'block';
+  zone.style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res  = await fetch('/batch', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    displayBatchResults(data, file.name);
+  } catch(e) {
+    alert('Erreur batch : ' + e.message);
+    zone.style.display = 'block';
+  } finally {
+    document.getElementById('batch-loading').style.display = 'none';
+  }
+}
+
+function displayBatchResults(data, filename) {
+  document.getElementById('batch-results').style.display = 'block';
+  document.getElementById('batch-title').textContent = `${filename} — ${data.total} clients analysés`;
+
+  const colorRate = data.churn_rate > 50 ? '#dc2626' : data.churn_rate > 25 ? '#d97706' : '#16a34a';
+  document.getElementById('batch-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${data.total}</div>
+      <div class="stat-lbl">Total clients</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:${colorRate}">${data.churn_rate}%</div>
+      <div class="stat-lbl">Taux de churn</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#dc2626">${data.churned}</div>
+      <div class="stat-lbl">Clients à risque</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#0f6e56">£${data.avg_monetary.toFixed(0)}</div>
+      <div class="stat-lbl">Montant moyen</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#ba7517">${data.avg_probability}%</div>
+      <div class="stat-lbl">Prob. moy.</div>
+    </div>
+  `;
+
+  const segColors = { Champions:'#534ab7', VIP:'#993556', Réguliers:'#0f6e56', Dormants:'#ba7517' };
+  let segHtml = '<p class="results-title" style="margin-bottom:8px;">Répartition par segment</p><div class="segments-viz">';
+  for (const [seg, count] of Object.entries(data.segments)) {
+    const pct = Math.round(count / data.total * 100);
+    segHtml += `<div class="seg-pill">
+      <div class="seg-dot" style="background:${segColors[seg]||'#888'}"></div>
+      <strong>${seg}</strong>
+      <span style="color:var(--text-3)">${count} (${pct}%)</span>
+    </div>`;
+  }
+  segHtml += '</div>';
+  document.getElementById('batch-segments').innerHTML = segHtml;
+
+  const wrap = document.getElementById('batch-table-wrap');
+  if (!data.results.length) { wrap.innerHTML = ''; return; }
+
+  let html = `<table>
+    <thead><tr>
+      <th>#</th><th>Prédiction</th><th>Probabilité</th><th>Risque</th><th>Montant</th><th>Segment</th>
+    </tr></thead><tbody>`;
+  data.results.forEach((r, i) => {
+    const isC = r.churn_prediction === 1;
+    const riskClass = r.churn_risk.toLowerCase() === 'élevé' ? 'badge-elevé' : 'badge-' + r.churn_risk.toLowerCase();
+    html += `<tr>
+      <td style="color:var(--text-3);font-family:var(--mono);font-size:12px">${i+1}</td>
+      <td>${isC
+        ? '<span style="color:#dc2626;font-weight:600">Churné</span>'
+        : '<span style="color:#16a34a;font-weight:600">Fidèle</span>'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${r.churn_probability}%</td>
+      <td><span class="badge ${riskClass}">${r.churn_risk}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;color:#0f6e56">£${r.monetary_predicted.toFixed(2)}</td>
+      <td style="font-size:12px">${r.segment}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  if (data.total > 50) {
+    html += `<p style="text-align:center;padding:10px;color:var(--text-3);font-size:12px;">
+      Affichage limité aux 50 premiers clients sur ${data.total}</p>`;
+  }
+  wrap.innerHTML = html;
+  zone.style.display = 'block';
+  document.getElementById('file-input').value = '';
+}
+</script>
 </body>
 </html>

@@ -19,28 +19,7 @@ if not os.path.exists(DATA_PATH):
 df = pd.read_csv(DATA_PATH)
 print(f"[OK] Dataset chargé : {df.shape[0]} lignes, {df.shape[1]} colonnes")
 print(df.head())
-# ================================
-# SUPPRESSION DES COLONNES LEAKAGE
-# ================================
-# Ces colonnes ont été calculées À PARTIR du Churn dans le dataset
-# Les inclure = donner la réponse au modèle → 100% accuracy artificielle
 
-## ================================
-# SUPPRESSION DES COLONNES LEAKAGE
-# ================================
-leakage_cols = [
-    'ChurnRiskCategory',      # ordinal 0=Faible→3=Critique, calculé depuis Churn
-    'LoyaltyLevel',           # ordinal, directement lié au statut churn
-    'RFMSegment_Dormants',    # Dormant = client churné par définition
-    'RFMSegment_Fidèles',     # Fidèle = client non churné par définition
-    'RFMSegment_Potentiels',  # segment lié au comportement churn
-]
-
-leakage_present = [c for c in leakage_cols if c in X_train.columns]
-X_train = X_train.drop(columns=leakage_present)
-X_test  = X_test.drop(columns=leakage_present)
-print(f"[OK] {len(leakage_present)} colonnes leakage supprimées : {leakage_present}")
-print(f"     X_train={X_train.shape} | X_test={X_test.shape}")
 # ================================
 # 2️⃣ Analyse initiale des données
 # ================================
@@ -82,7 +61,6 @@ if 'AvgDaysBetweenPurchases' in df.columns:
 # ================================
 
 # --- SupportTicketsCount ---
-# -1 et 999 = codes d'erreur → NaN → médiane → capping IQR
 COL_TICKETS = 'SupportTicketsCount'
 if COL_TICKETS in df.columns:
     nb_sentinel = df[COL_TICKETS].isin([-1, 999]).sum()
@@ -103,7 +81,6 @@ else:
     print(f"[AVERTISSEMENT] Colonne '{COL_TICKETS}' introuvable.")
 
 # --- SatisfactionScore ---
-# -1, 0, 99 = codes d'erreur. Valeurs valides : 1 à 5
 COL_SATIS = 'SatisfactionScore'
 if COL_SATIS in df.columns:
     nb_sentinel_s = df[COL_SATIS].isin([-1, 0, 99]).sum()
@@ -117,12 +94,12 @@ else:
     print(f"[AVERTISSEMENT] Colonne '{COL_SATIS}' introuvable.")
 
 # ================================
-# 5️⃣ Formats inconsistants + Feature Engineering date
+# 5️⃣ Feature Engineering — RegistrationDate
 # ================================
 
 if 'RegistrationDate' in df.columns:
     nb_before = df['RegistrationDate'].isnull().sum()
-    df["RegistrationDate"] = pd.to_datetime(df["RegistrationDate"], format="mixed", dayfirst=True, errors='coerce')    
+    df["RegistrationDate"] = pd.to_datetime(df["RegistrationDate"], format="mixed", dayfirst=True, errors='coerce')
     nb_after = df['RegistrationDate'].isnull().sum()
     nb_failed = nb_after - nb_before
 
@@ -131,7 +108,6 @@ if 'RegistrationDate' in df.columns:
     df['RegDay']     = df['RegistrationDate'].dt.day
     df['RegWeekday'] = df['RegistrationDate'].dt.weekday
 
-    # Supprimer la colonne date originale (remplacée par 4 features numériques)
     df = df.drop(columns=["RegistrationDate"])
     print(f"[OK] 'RegistrationDate' : features extraites + colonne supprimée ({nb_failed} NaT)")
 else:
@@ -146,7 +122,7 @@ if 'NewsletterSubscribed' in df.columns:
     print("[OK] 'NewsletterSubscribed' supprimée (variance nulle).")
 
 # ================================
-# 7️⃣ Feature Engineering sur LastLoginIP
+# 7️⃣ Feature Engineering — LastLoginIP
 # ================================
 
 if 'LastLoginIP' in df.columns:
@@ -163,10 +139,9 @@ else:
     print("[AVERTISSEMENT] Colonne 'LastLoginIP' introuvable.")
 
 # ================================
-# 8️⃣ Analyse distribution colonnes catégorielles
+# 8️⃣ Analyse colonnes catégorielles
 # ================================
 
-# CORRECTION : 'str' explicite pour compatibilité Pandas 3
 cat_cols = df.select_dtypes(include=['str', 'object']).columns.tolist()
 print(f"\n[INFO] Colonnes catégorielles ({len(cat_cols)}) : {cat_cols}")
 
@@ -179,7 +154,10 @@ for col in cat_cols:
 # 9️⃣ Encodage des variables catégorielles
 # ================================
 
-# --- Encodage Ordinal (noms corrigés selon le vrai dataset) ---
+# --- Encodage Ordinal ---
+# IMPORTANT : LoyaltyLevel et ChurnRiskCategory sont encodés ici
+# mais seront supprimés juste après (leakage)
+# On les encode quand même pour ne pas casser le pipeline
 ordinal_mappings = {
     'AgeCategory':        ['Inconnu', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'],
     'SpendingCategory':   ['Low', 'Medium', 'High', 'VIP'],
@@ -202,7 +180,7 @@ for col, categories in ordinal_mappings.items():
     else:
         print(f"[AVERTISSEMENT] Colonne '{col}' introuvable.")
 
-# --- Encodage One-Hot (noms corrigés selon le vrai dataset) ---
+# --- Encodage One-Hot ---
 onehot_cols = [
     'CustomerType',
     'FavoriteSeason',
@@ -220,12 +198,13 @@ if onehot_present:
     print(f"[OK] One-Hot Encoding → {onehot_present}")
     print(f"     Dimensions après One-Hot : {df.shape}")
 
-# RFMSegment : One-Hot (pas d'ordre entre Champions/Fidèles/etc.)
+# RFMSegment : One-Hot
+# IMPORTANT : sera supprimé juste après (leakage) — on encode d'abord
 if 'RFMSegment' in df.columns:
     df = pd.get_dummies(df, columns=['RFMSegment'], drop_first=True)
     print("[OK] One-Hot Encoding → 'RFMSegment'")
 
-# Country : fréquence (37+ pays → One-Hot créerait trop de colonnes)
+# Country : encodage par fréquence
 if 'Country' in df.columns:
     freq_map = df['Country'].value_counts(normalize=True)
     df['Country_freq'] = df['Country'].map(freq_map)
@@ -233,7 +212,30 @@ if 'Country' in df.columns:
     print("[OK] 'Country' → encodage par fréquence (Country_freq)")
 
 # ================================
-# 🔟 Sauvegarde dataset nettoyé + encodé
+# 🔟 Suppression colonnes LEAKAGE
+# ================================
+# Ces colonnes contiennent déjà la réponse (Churn) → le modèle "triche"
+# Recency        : client parti = plus d'achat = Recency élevée (corr=0.859)
+# ChurnRiskCategory : calculée directement depuis Churn
+# LoyaltyLevel   : lié au statut churn
+# RFMSegment_*   : Dormant = churné par définition
+
+leakage_cols = [
+    'Recency',
+    'ChurnRiskCategory',
+    'LoyaltyLevel',
+    'RFMSegment_Dormants',
+    'RFMSegment_Fidèles',
+    'RFMSegment_Potentiels',
+]
+
+leakage_present = [c for c in leakage_cols if c in df.columns]
+df = df.drop(columns=leakage_present)
+print(f"\n[OK] {len(leakage_present)} colonnes leakage supprimées : {leakage_present}")
+print(f"     Dimensions après suppression leakage : {df.shape}")
+
+# ================================
+# 1️⃣1️⃣ Sauvegarde dataset nettoyé
 # ================================
 
 os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
@@ -242,7 +244,7 @@ print(f"\n[OK] dataset_cleaned.csv → {OUTPUT_PATH}")
 print(f"     Dimensions : {df.shape[0]} lignes × {df.shape[1]} colonnes")
 
 # ================================
-# 1️⃣1️⃣ Séparation X / y
+# 1️⃣2️⃣ Séparation X / y
 # ================================
 
 if 'Churn' not in df.columns:
@@ -261,7 +263,7 @@ print(f"[INFO] Distribution Churn :\n{y.value_counts()}")
 print(f"[INFO] Taux de churn : {y.mean()*100:.1f}%")
 
 # ================================
-# 1️⃣2️⃣ Train/Test Split (80/20 stratifié)
+# 1️⃣3️⃣ Train/Test Split (80/20 stratifié)
 # ================================
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -273,7 +275,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"[OK] Split : Train {X_train.shape} | Test {X_test.shape}")
 
 # ================================
-# 1️⃣3️⃣ Normalisation — StandardScaler
+# 1️⃣4️⃣ Normalisation — StandardScaler
 # ================================
 
 # RÈGLE ABSOLUE :
@@ -289,9 +291,19 @@ X_test[num_cols]  = scaler.transform(X_test[num_cols])
 
 print(f"[OK] StandardScaler sur {len(num_cols)} colonnes numériques")
 print(f"     Moyenne X_train après scaling (doit être ~0) : {X_train[num_cols].mean().mean():.4f}")
+import joblib
 
+MODELS_PATH = "models/"
+os.makedirs(MODELS_PATH, exist_ok=True)
+
+joblib.dump(scaler, MODELS_PATH + "scaler_raw.pkl")
+print(f"[OK] Scaler sauvegardé → {MODELS_PATH}scaler_raw.pkl")
+
+# Sauvegarder aussi la liste des colonnes numériques pour référence
+joblib.dump(num_cols, MODELS_PATH + "scaler_num_cols.pkl")
+print(f"[OK] Liste colonnes numériques sauvegardée → {MODELS_PATH}scaler_num_cols.pkl")
 # ================================
-# 1️⃣4️⃣ Sauvegarde Train/Test
+# 1️⃣5️⃣ Sauvegarde Train/Test
 # ================================
 
 TRAIN_TEST_PATH = "data/train_test/"

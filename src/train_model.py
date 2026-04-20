@@ -10,7 +10,8 @@ import seaborn as sns
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.cluster import KMeans
-from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import (
     accuracy_score, f1_score, classification_report,
     confusion_matrix, ConfusionMatrixDisplay,
@@ -22,7 +23,6 @@ from xgboost import XGBClassifier, XGBRegressor
 # ================================
 # 1️⃣ Chargement des données
 # ================================
-
 TRAIN_TEST_PATH = "data/train_test/"
 CLEAN_PATH      = "data/processed/dataset_cleaned.csv"
 MODELS_PATH     = "models/"
@@ -36,162 +36,176 @@ X_test  = pd.read_csv(TRAIN_TEST_PATH + "X_test.csv")
 y_train = pd.read_csv(TRAIN_TEST_PATH + "y_train.csv").squeeze()
 y_test  = pd.read_csv(TRAIN_TEST_PATH + "y_test.csv").squeeze()
 
+# On charge AUSSI les données brutes (non normalisées) pour le clustering
+df_clean = pd.read_csv(CLEAN_PATH)
+
 print(f"[OK] Données chargées")
 print(f"     X_train : {X_train.shape} | X_test : {X_test.shape}")
+print(f"     df_clean (brutes) : {df_clean.shape}")
 
 # ================================
-# 2️⃣ CLUSTERING K-MEANS
+# 2️⃣ CLUSTERING K-MEANS (CORRIGÉ)
 # ================================
-# IMPORTANT : Le clustering se fait AVANT la suppression des colonnes leakage
-# car Recency est une feature légitime pour segmenter les clients.
-# On utilise les features RFM (Recency, Frequency, MonetaryTotal)
-
+# ✅ FIX : On utilise les 3 features RFM sur données BRUTES
+# avec un scaler dédié pour éviter que tout soit dans un seul cluster
 print("\n" + "="*50)
-print("PARTIE 1 — CLUSTERING K-MEANS")
+print("PARTIE 1 — CLUSTERING K-MEANS (corrigé)")
 print("="*50)
 
-rfm_cols = [c for c in ['Recency', 'Frequency', 'MonetaryTotal'] if c in X_train.columns]
-X_rfm    = X_train[rfm_cols].copy()
-print(f"     Features RFM utilisées : {rfm_cols}")
+# Récupérer les 3 features RFM depuis les données brutes
+rfm_cols_full = ['Recency', 'Frequency', 'MonetaryTotal']
+rfm_available = [c for c in rfm_cols_full if c in df_clean.columns]
+print(f"     Features RFM utilisées : {rfm_available}")
 
-# Méthode Elbow : tester k=2 à k=9
+X_rfm_raw = df_clean[rfm_available].copy()
+
+# ✅ FIX : Retirer les outliers extrêmes qui créent des mini-clusters
+# (ces 10 clients ultra-riches faussaient tout)
+for col in rfm_available:
+    q99 = X_rfm_raw[col].quantile(0.99)
+    X_rfm_raw[col] = X_rfm_raw[col].clip(upper=q99)
+
+# ✅ FIX : Scaler DÉDIÉ au clustering (pas celui du classificateur)
+scaler_rfm = StandardScaler()
+X_rfm_scaled = scaler_rfm.fit_transform(X_rfm_raw)
+
+# Méthode Elbow
 inertias = []
-k_range  = range(2, 10)
+silhouettes = []
+k_range = range(2, 10)
 
 for k in k_range:
     km = KMeans(n_clusters=k, random_state=42, n_init=10)
-    km.fit(X_rfm)
+    km.fit(X_rfm_scaled)
     inertias.append(km.inertia_)
-    print(f"  k={k} → inertie={km.inertia_:.0f}")
+    sil = silhouette_score(X_rfm_scaled, km.labels_)
+    silhouettes.append(sil)
+    print(f"  k={k} → inertie={km.inertia_:.0f} | silhouette={sil:.4f}")
 
-# Graphique Elbow
-plt.figure(figsize=(8, 4))
-plt.plot(list(k_range), inertias, 'o-', color='steelblue', linewidth=2, markersize=6)
-plt.xlabel("Nombre de clusters (k)")
-plt.ylabel("Inertie")
-plt.title("Méthode Elbow — choix du k optimal")
-plt.grid(True, alpha=0.3)
+# Double graphique : Elbow + Silhouette
+fig, axes = plt.subplots(1, 2, figsize=(14, 4))
+axes[0].plot(list(k_range), inertias, 'o-', color='steelblue', linewidth=2)
+axes[0].set_xlabel("Nombre de clusters (k)")
+axes[0].set_ylabel("Inertie")
+axes[0].set_title("Méthode Elbow")
+axes[0].grid(True, alpha=0.3)
+
+axes[1].plot(list(k_range), silhouettes, 'o-', color='orange', linewidth=2)
+axes[1].set_xlabel("Nombre de clusters (k)")
+axes[1].set_ylabel("Silhouette Score")
+axes[1].set_title("Score de Silhouette")
+axes[1].grid(True, alpha=0.3)
+
 plt.tight_layout()
 plt.savefig(REPORTS_PATH + "elbow_curve.png", dpi=150)
 plt.close()
-print(f"[OK] Graphique Elbow → {REPORTS_PATH}elbow_curve.png")
+print(f"[OK] Graphique Elbow+Silhouette → {REPORTS_PATH}elbow_curve.png")
 
-# Entraînement avec k=4
+# ✅ Choix k=4 pour avoir 4 segments métier clairs
 K_OPTIMAL = 4
 kmeans = KMeans(n_clusters=K_OPTIMAL, random_state=42, n_init=10)
-kmeans.fit(X_rfm)
+kmeans.fit(X_rfm_scaled)
 
-sil_score = silhouette_score(X_rfm, kmeans.labels_)
+sil_score = silhouette_score(X_rfm_scaled, kmeans.labels_)
 print(f"\n[OK] K-Means k={K_OPTIMAL} | Silhouette={sil_score:.4f}")
 
 cluster_counts = pd.Series(kmeans.labels_).value_counts().sort_index()
 print(f"     Distribution : {cluster_counts.to_dict()}")
 
-X_rfm_copy          = X_rfm.copy()
-X_rfm_copy['Cluster'] = kmeans.labels_
-print(f"\n     Profil moyen par cluster :")
-print(X_rfm_copy.groupby('Cluster')[rfm_cols].mean().round(2).to_string())
+# Profil moyen par cluster (sur données brutes pour interprétabilité)
+X_rfm_profile = X_rfm_raw.copy()
+X_rfm_profile['Cluster'] = kmeans.labels_
+profile = X_rfm_profile.groupby('Cluster')[rfm_available].mean().round(2)
+print(f"\n     Profil moyen par cluster (valeurs brutes) :")
+print(profile.to_string())
 
-# Visualisation clusters — axes selon features disponibles
-x_axis = 'Recency'      if 'Recency'       in rfm_cols else rfm_cols[0]
-y_axis = 'MonetaryTotal' if 'MonetaryTotal' in rfm_cols else rfm_cols[-1]
+# Assignation automatique des noms de segments selon les profils
+# Champions = haute Frequency + haute Monetary + basse Recency
+# VIP = ultra haute Monetary
+# Réguliers = moyens partout
+# Dormants = haute Recency + basse Frequency
+print(f"\n     Interprétation métier suggérée :")
+for cluster_id in profile.index:
+    r = profile.loc[cluster_id, 'Recency'] if 'Recency' in profile.columns else 0
+    f = profile.loc[cluster_id, 'Frequency']
+    m = profile.loc[cluster_id, 'MonetaryTotal']
+    print(f"       Cluster {cluster_id}: R={r:.0f}j, F={f:.1f}, M={m:.0f}£ "
+          f"({cluster_counts[cluster_id]} clients)")
 
-plt.figure(figsize=(8, 5))
+# Visualisation (Recency vs MonetaryTotal)
+plt.figure(figsize=(9, 6))
 colors = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2']
 for i in range(K_OPTIMAL):
     mask = kmeans.labels_ == i
     plt.scatter(
-        X_rfm.loc[mask, x_axis],
-        X_rfm.loc[mask, y_axis],
-        c=colors[i], label=f'Cluster {i}', alpha=0.5, s=20
+        X_rfm_raw.loc[mask, 'Recency'] if 'Recency' in X_rfm_raw.columns else X_rfm_raw.iloc[mask, 0],
+        X_rfm_raw.loc[mask, 'MonetaryTotal'],
+        c=colors[i], label=f'Cluster {i} (n={mask.sum()})',
+        alpha=0.5, s=25, edgecolors='white', linewidth=0.3
     )
-plt.xlabel(f"{x_axis} (normalisée)")
-plt.ylabel(f"{y_axis} (normalisée)")
-plt.title(f"Segmentation K-Means — {x_axis} vs {y_axis}")
+plt.xlabel("Recency (jours)")
+plt.ylabel("MonetaryTotal (£)")
+plt.title(f"Segmentation K-Means (k={K_OPTIMAL}) — Silhouette={sil_score:.3f}")
 plt.legend()
+plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig(REPORTS_PATH + "kmeans_clusters.png", dpi=150)
 plt.close()
 print(f"[OK] Visualisation clusters → {REPORTS_PATH}kmeans_clusters.png")
 
+# ✅ Sauvegarder kmeans + scaler_rfm + colonnes
 joblib.dump(kmeans, MODELS_PATH + "kmeans_model.pkl")
-print(f"[OK] Modèle K-Means sauvegardé → {MODELS_PATH}kmeans_model.pkl")
+joblib.dump(scaler_rfm, MODELS_PATH + "scaler_rfm.pkl")
+joblib.dump(rfm_available, MODELS_PATH + "rfm_features.pkl")
+print(f"[OK] K-Means + scaler RFM sauvegardés")
 
 # ================================
 # 3️⃣ SUPPRESSION COLONNES LEAKAGE
 # ================================
-# Ces colonnes sont supprimées UNIQUEMENT pour la classification/régression.
-# Le clustering a déjà été fait avec les features complètes ci-dessus.
-#
-# Raison : ces colonnes ont été calculées à partir du Churn dans le dataset
-# synthétique → les inclure donne 100% artificiel.
-
 LEAKAGE_COLS = [
-    # Calculées directement depuis Churn
-    'ChurnRiskCategory',      # 0=Faible → 3=Critique
-    'LoyaltyLevel',           # corrélé fortement au statut churn
-
-    # RFMSegment One-Hot — définis par comportement churn
-    'RFMSegment_Dormants',    # Dormant = churné
-    'RFMSegment_Fidèles',     # Fidèle = non churné
-    'RFMSegment_Potentiels',  # à risque de churn
-
-    # CustomerType — "Perdu" = churné par définition
+    'ChurnRiskCategory',
+    'LoyaltyLevel',
+    'RFMSegment_Dormants',
+    'RFMSegment_Fidèles',
+    'RFMSegment_Potentiels',
     'CustomerType_Perdu',
     'CustomerType_Nouveau',
-
-    # Trop corrélées au Churn dans ce dataset synthétique (corr > 0.40)
-    'Recency',                # corr=0.86
-    'CustomerTenureDays',     # corr=0.45
-    'SpendingCategory',       # corr=0.38
-    'PreferredMonth',         # corr=0.43
-    'FavoriteSeason_Printemps', # corr=0.30
+    'CustomerType_Occasionnel',
+    'CustomerType_Régulier',
+    'CustomerType_Hyperactif',
+    'Recency',
+    'CustomerTenureDays',
+    'SpendingCategory',
+    'PreferredMonth',
+    'FavoriteSeason_Printemps',
 ]
 
 leakage_present = [c for c in LEAKAGE_COLS if c in X_train.columns]
 X_train_clf = X_train.drop(columns=leakage_present)
 X_test_clf  = X_test.drop(columns=leakage_present)
 
-print(f"\n[OK] {len(leakage_present)} colonnes leakage supprimées pour classification :")
-for c in leakage_present:
-    print(f"     - {c}")
+print(f"\n[OK] {len(leakage_present)} colonnes leakage supprimées pour classification")
 print(f"     X_train_clf={X_train_clf.shape} | X_test_clf={X_test_clf.shape}")
 
 # ================================
 # 4️⃣ CLASSIFICATION — Prédire le Churn
 # ================================
-
 print("\n" + "="*50)
 print("PARTIE 2 — CLASSIFICATION (Prédiction Churn)")
 print("="*50)
-print(f"     Features utilisées : {X_train_clf.shape[1]} colonnes")
-print(f"     Distribution Churn train : {y_train.value_counts().to_dict()}")
 
 classifiers = {
     "Logistic Regression": LogisticRegression(
-        max_iter=1000,
-        class_weight='balanced',
-        random_state=42,
-        C=0.1
+        max_iter=1000, class_weight='balanced', random_state=42, C=0.1
     ),
     "Random Forest": RandomForestClassifier(
-        n_estimators=200,
-        max_depth=8,
-        min_samples_leaf=10,
-        class_weight='balanced',
-        random_state=42,
-        n_jobs=-1
+        n_estimators=200, max_depth=8, min_samples_leaf=10,
+        class_weight='balanced', random_state=42, n_jobs=-1
     ),
     "XGBoost": XGBClassifier(
-        n_estimators=200,
-        learning_rate=0.05,
-        max_depth=4,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        scale_pos_weight=2,
-        random_state=42,
-        eval_metric='logloss',
-        verbosity=0
+        n_estimators=200, learning_rate=0.05, max_depth=4,
+        subsample=0.8, colsample_bytree=0.8, scale_pos_weight=2,
+        random_state=42, eval_metric='logloss', verbosity=0
     ),
 }
 
@@ -203,18 +217,28 @@ results_clf    = {}
 for name, clf in classifiers.items():
     clf.fit(X_train_clf, y_train)
     y_pred = clf.predict(X_test_clf)
-
+    
     acc = accuracy_score(y_test, y_pred)
     f1  = f1_score(y_test, y_pred, average='weighted')
-    results_clf[name] = {'accuracy': acc, 'f1': f1}
-
+    
+    # ✅ Validation croisée
+    cv_scores = cross_val_score(clf, X_train_clf, y_train, cv=5,
+                                 scoring='f1_weighted', n_jobs=-1)
+    cv_mean = cv_scores.mean()
+    cv_std  = cv_scores.std()
+    
+    results_clf[name] = {
+        'accuracy': acc, 'f1': f1,
+        'cv_f1_mean': cv_mean, 'cv_f1_std': cv_std
+    }
+    
     print(f"\n--- {name} ---")
-    print(f"  Accuracy : {acc:.4f}  ({acc*100:.1f}%)")
-    print(f"  F1-Score : {f1:.4f}")
+    print(f"  Accuracy test    : {acc:.4f}  ({acc*100:.1f}%)")
+    print(f"  F1 test          : {f1:.4f}")
+    print(f"  F1 CV (5-folds)  : {cv_mean:.4f} (+/- {cv_std:.4f})")
     print(classification_report(y_test, y_pred,
-                                 target_names=['Fidèle (0)', 'Churné (1)']))
-
-    # Matrice de confusion
+                                target_names=['Fidèle (0)', 'Churné (1)']))
+    
     cm = confusion_matrix(y_test, y_pred)
     fig, ax = plt.subplots(figsize=(5, 4))
     ConfusionMatrixDisplay(cm, display_labels=['Fidèle', 'Churné']).plot(
@@ -225,7 +249,7 @@ for name, clf in classifiers.items():
     safe_name = name.replace(' ', '_').lower()
     plt.savefig(REPORTS_PATH + f"confusion_{safe_name}.png", dpi=150)
     plt.close()
-
+    
     if f1 > best_clf_f1:
         best_clf_f1    = f1
         best_clf_name  = name
@@ -240,8 +264,8 @@ if best_clf_name in ["Random Forest", "XGBoost"]:
         'feature':    X_train_clf.columns,
         'importance': importances
     }).sort_values('importance', ascending=False).head(15)
-
-    plt.figure(figsize=(8, 6))
+    
+    plt.figure(figsize=(9, 6))
     sns.barplot(data=feat_df, y='feature', x='importance',
                 hue='feature', palette='viridis', legend=False)
     plt.title(f"Top 15 features — {best_clf_name}")
@@ -250,80 +274,106 @@ if best_clf_name in ["Random Forest", "XGBoost"]:
     plt.savefig(REPORTS_PATH + "feature_importance_classification.png", dpi=150)
     plt.close()
     print(f"[OK] Feature importance → {REPORTS_PATH}feature_importance_classification.png")
-    print(f"\n     Top 5 features pour prédire le Churn :")
+    print(f"\n     Top 5 features :")
     print(feat_df[['feature', 'importance']].head(5).to_string(index=False))
 
+# ✅ Sauvegarder modèle + liste de features
 joblib.dump(best_clf_model, MODELS_PATH + "best_classifier.pkl")
-print(f"[OK] Modèle sauvegardé → {MODELS_PATH}best_classifier.pkl")
+joblib.dump(X_train_clf.columns.tolist(), MODELS_PATH + "clf_features.pkl")
+print(f"[OK] Classificateur + features sauvegardés")
 
 # ================================
-# 5️⃣ RÉGRESSION — Prédire MonetaryTotal
+# 5️⃣ RÉGRESSION (CORRIGÉ)
 # ================================
-
+# ✅ FIX : On utilise X_train/X_test NORMALISÉS (cohérent avec predict.py)
+# et on reconstruit y_reg depuis df_clean via l'index
 print("\n" + "="*50)
-print("PARTIE 3 — RÉGRESSION (Prédiction MonetaryTotal)")
+print("PARTIE 3 — RÉGRESSION (Prédiction MonetaryTotal) — CORRIGÉE")
 print("="*50)
 
-df_clean = pd.read_csv(CLEAN_PATH)
+# On prépare y_reg (cible = MonetaryTotal brute) en suivant le même split
+# On refait le split avec le même random_state pour garantir la cohérence
+df_for_reg = df_clean.copy()
 
-exclude = [
-    'MonetaryTotal',  # target
-    'MonetaryAvg',    # dérivé de MonetaryTotal
-    'MonetaryStd',    # dérivé de MonetaryTotal
-    'MonetaryMin',    # dérivé de MonetaryTotal
-    'MonetaryMax',    # dérivé de MonetaryTotal
-    'Churn',
-    'CustomerID',
-    'Country',
-]
-exclude_present = [c for c in exclude if c in df_clean.columns]
+# Retirer Churn et CustomerID de df_clean pour avoir le même X
+cols_to_drop_reg = ['Churn']
+if 'CustomerID' in df_for_reg.columns:
+    cols_to_drop_reg.append('CustomerID')
 
-X_reg = df_clean.drop(columns=exclude_present)
-y_reg = df_clean['MonetaryTotal']
-X_reg = X_reg.select_dtypes(include=[np.number])
+X_full = df_for_reg.drop(columns=cols_to_drop_reg)
+y_churn_full = df_for_reg['Churn']
 
-X_reg_train, X_reg_test, y_reg_train, y_reg_test = train_test_split(
-    X_reg, y_reg, test_size=0.2, random_state=42
+# Même split que preprocessing.py (random_state=42, stratify)
+from sklearn.model_selection import train_test_split as tts
+X_tr_raw, X_te_raw, y_tr_ch, y_te_ch = tts(
+    X_full, y_churn_full, test_size=0.2, random_state=42, stratify=y_churn_full
 )
-print(f"[OK] X_train={X_reg_train.shape} | X_test={X_reg_test.shape}")
+
+# y_reg = MonetaryTotal correspondant à chaque ligne
+y_reg_train = X_tr_raw['MonetaryTotal'].values
+y_reg_test  = X_te_raw['MonetaryTotal'].values
+
+# Features pour la régression (on retire toutes les colonnes Monetary + target)
+monetary_cols = ['MonetaryTotal', 'MonetaryAvg', 'MonetaryStd',
+                 'MonetaryMin', 'MonetaryMax']
+
+# On utilise les X normalisés existants, en retirant les colonnes Monetary
+reg_features = [c for c in X_train.columns if c not in monetary_cols]
+
+X_reg_train = X_train[reg_features].copy()
+X_reg_test  = X_test[reg_features].copy()
+
+# Vérifier cohérence des tailles
+assert len(X_reg_train) == len(y_reg_train), "Mismatch train"
+assert len(X_reg_test) == len(y_reg_test), "Mismatch test"
+
+print(f"[OK] X_reg_train={X_reg_train.shape} | X_reg_test={X_reg_test.shape}")
+print(f"     y_reg stats: min={y_reg_train.min():.0f}, "
+      f"median={np.median(y_reg_train):.0f}, max={y_reg_train.max():.0f}")
+
+# ✅ Log-transform de y pour stabiliser les outliers extrêmes
+# MonetaryTotal a des valeurs de 0 à 280k£ → skew très fort
+y_reg_train_log = np.log1p(np.maximum(y_reg_train, 0))
+y_reg_test_log  = np.log1p(np.maximum(y_reg_test, 0))
 
 regressors = {
     "Linear Regression": LinearRegression(),
     "Random Forest Regressor": RandomForestRegressor(
-        n_estimators=200,
-        max_depth=10,
-        min_samples_leaf=5,
-        random_state=42,
-        n_jobs=-1
+        n_estimators=200, max_depth=10, min_samples_leaf=5,
+        random_state=42, n_jobs=-1
     ),
     "XGBoost Regressor": XGBRegressor(
-        n_estimators=200,
-        learning_rate=0.05,
-        max_depth=5,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=42,
-        verbosity=0
+        n_estimators=200, learning_rate=0.05, max_depth=5,
+        subsample=0.8, colsample_bytree=0.8,
+        random_state=42, verbosity=0
     ),
 }
 
 best_reg_name  = None
 best_reg_r2    = -np.inf
 best_reg_model = None
+results_reg    = {}
 
 for name, reg in regressors.items():
-    reg.fit(X_reg_train, y_reg_train)
-    y_pred_reg = reg.predict(X_reg_test)
-
-    mae  = mean_absolute_error(y_reg_test, y_pred_reg)
-    rmse = np.sqrt(mean_squared_error(y_reg_test, y_pred_reg))
-    r2   = r2_score(y_reg_test, y_pred_reg)
-
+    # Entraîner sur log(y)
+    reg.fit(X_reg_train, y_reg_train_log)
+    
+    # Prédire et repasser en échelle originale
+    y_pred_log = reg.predict(X_reg_test)
+    y_pred = np.expm1(y_pred_log)
+    y_pred = np.maximum(y_pred, 0)  # pas de montants négatifs
+    
+    mae  = mean_absolute_error(y_reg_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_reg_test, y_pred))
+    r2   = r2_score(y_reg_test, y_pred)
+    
+    results_reg[name] = {'mae': mae, 'rmse': rmse, 'r2': r2}
+    
     print(f"\n--- {name} ---")
     print(f"  MAE  : {mae:.2f} £")
     print(f"  RMSE : {rmse:.2f} £")
     print(f"  R²   : {r2:.4f}")
-
+    
     if r2 > best_reg_r2:
         best_reg_r2    = r2
         best_reg_name  = name
@@ -331,34 +381,46 @@ for name, reg in regressors.items():
 
 print(f"\n[OK] Meilleur régresseur : {best_reg_name} (R²={best_reg_r2:.4f})")
 
-y_pred_best_reg = best_reg_model.predict(X_reg_test)
-plt.figure(figsize=(7, 5))
-plt.scatter(y_reg_test, y_pred_best_reg, alpha=0.3, s=15, color='steelblue')
-max_val = float(max(y_reg_test.max(), y_pred_best_reg.max()))
+# Visualisation
+y_pred_best = np.expm1(best_reg_model.predict(X_reg_test))
+y_pred_best = np.maximum(y_pred_best, 0)
+
+plt.figure(figsize=(8, 6))
+plt.scatter(y_reg_test, y_pred_best, alpha=0.4, s=18, color='steelblue')
+max_val = float(max(y_reg_test.max(), y_pred_best.max()))
 plt.plot([0, max_val], [0, max_val], 'r--', linewidth=1.5, label='Prédiction parfaite')
 plt.xlabel("Valeur réelle (£)")
 plt.ylabel("Valeur prédite (£)")
-plt.title(f"Régression — Réel vs Prédit ({best_reg_name})")
+plt.title(f"Régression — {best_reg_name} (R²={best_reg_r2:.3f})")
 plt.legend()
+plt.xscale('log')
+plt.yscale('log')
 plt.tight_layout()
 plt.savefig(REPORTS_PATH + "regression_pred_vs_real.png", dpi=150)
 plt.close()
 print(f"[OK] Graphique → {REPORTS_PATH}regression_pred_vs_real.png")
 
+# ✅ Sauvegarder modèle + features + flag log
 joblib.dump(best_reg_model, MODELS_PATH + "best_regressor.pkl")
-print(f"[OK] Modèle sauvegardé → {MODELS_PATH}best_regressor.pkl")
+joblib.dump(reg_features, MODELS_PATH + "reg_features.pkl")
+joblib.dump(True, MODELS_PATH + "reg_uses_log.pkl")  # flag pour predict.py
+print(f"[OK] Régresseur + features sauvegardés")
 
 # ================================
 # 6️⃣ RÉSUMÉ FINAL
 # ================================
-
 print("\n" + "="*50)
 print("RÉSUMÉ FINAL")
 print("="*50)
 print(f"  Clustering    : K-Means k={K_OPTIMAL} | Silhouette={sil_score:.4f}")
+print(f"                  Distribution : {cluster_counts.to_dict()}")
+
 for name, scores in results_clf.items():
-    print(f"  {name:<25} | Accuracy={scores['accuracy']:.4f} | F1={scores['f1']:.4f}")
-print(f"  Régression    : {best_reg_name} | R²={best_reg_r2:.4f}")
+    print(f"  {name:<25} | Acc={scores['accuracy']:.4f} | "
+          f"F1={scores['f1']:.4f} | CV={scores['cv_f1_mean']:.4f}")
+
+print(f"  Meilleur classif. : {best_clf_name}")
+print(f"  Meilleur régression : {best_reg_name} | R²={best_reg_r2:.4f}")
 print(f"\n  Modèles → {MODELS_PATH}")
 print(f"  Rapports → {REPORTS_PATH}")
 print("\n✅ train_model.py terminé avec succès !")
