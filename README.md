@@ -29,29 +29,7 @@ source venv/bin/activate
 
 # Installer les dépendances
 pip install -r exigences.txt
-🗂️ Structure du projet
-projet_ml_retail/
-│
-├── data/
-│   ├── raw/              # Données brutes
-│   ├── traitees/         # Données nettoyées
-│   └── train_test/       # Données train/test
-│
-├── notebooks/            # Exploration & prototypage
-│
-├── src/
-│   ├── preprocessing.py  # Nettoyage & feature engineering
-│   ├── train_model.py    # Entraînement & évaluation
-│   ├── predict.py        # Prédictions
-│   └── utils.py          # Fonctions utilitaires
-│
-├── models/               # Modèles sauvegardés (.pkl)
-├── app/                  # Application Flask
-├── reports/              # Graphiques & résultats
-│
-├── exigences.txt         # Dépendances
-├── README.md             # Documentation
-└── .gitignore
+
 ▶️ Utilisation
 🔹 1. Prétraitement
 python src/preprocessing.py
