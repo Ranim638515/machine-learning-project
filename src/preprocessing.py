@@ -2,8 +2,13 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+import joblib
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler, OrdinalEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 
 # ================================
 # 1️⃣ Chargement des données
@@ -291,7 +296,6 @@ X_test[num_cols]  = scaler.transform(X_test[num_cols])
 
 print(f"[OK] StandardScaler sur {len(num_cols)} colonnes numériques")
 print(f"     Moyenne X_train après scaling (doit être ~0) : {X_train[num_cols].mean().mean():.4f}")
-import joblib
 
 MODELS_PATH = "models/"
 os.makedirs(MODELS_PATH, exist_ok=True)
@@ -299,11 +303,64 @@ os.makedirs(MODELS_PATH, exist_ok=True)
 joblib.dump(scaler, MODELS_PATH + "scaler_raw.pkl")
 print(f"[OK] Scaler sauvegardé → {MODELS_PATH}scaler_raw.pkl")
 
-# Sauvegarder aussi la liste des colonnes numériques pour référence
 joblib.dump(num_cols, MODELS_PATH + "scaler_num_cols.pkl")
 print(f"[OK] Liste colonnes numériques sauvegardée → {MODELS_PATH}scaler_num_cols.pkl")
+
 # ================================
-# 1️⃣5️⃣ Sauvegarde Train/Test
+# 1️⃣5️⃣ ACP — Analyse en Composantes Principales
+# ================================
+# Objectif : analyser combien de composantes expliquent ≥ 95% de la variance
+# RÈGLE : fit sur X_train uniquement, transform sur X_test
+
+os.makedirs("reports/", exist_ok=True)
+
+# Fit PCA complète pour analyser la variance (sur colonnes numériques uniquement)
+pca_full = PCA(random_state=42)
+pca_full.fit(X_train[num_cols])
+
+# Variance cumulée
+cumvar = np.cumsum(pca_full.explained_variance_ratio_)
+n_components_95 = int(np.argmax(cumvar >= 0.95)) + 1
+n_components_99 = int(np.argmax(cumvar >= 0.99)) + 1
+
+print(f"\n[ACP] Composantes pour expliquer 95% de la variance : {n_components_95}")
+print(f"[ACP] Composantes pour expliquer 99% de la variance : {n_components_99}")
+print(f"[ACP] Variance expliquée par les 10 premières composantes : {cumvar[min(9, len(cumvar)-1)]:.4f}")
+
+# Graphique variance cumulée
+plt.figure(figsize=(9, 5))
+plt.plot(range(1, len(cumvar) + 1), cumvar, 'o-',
+         color='steelblue', linewidth=1.5, markersize=3)
+plt.axhline(y=0.95, color='red',    linestyle='--', linewidth=1.5, label='Seuil 95%')
+plt.axhline(y=0.99, color='orange', linestyle='--', linewidth=1.5, label='Seuil 99%')
+plt.axvline(x=n_components_95, color='red',    linestyle=':', linewidth=1, alpha=0.7)
+plt.axvline(x=n_components_99, color='orange', linestyle=':', linewidth=1, alpha=0.7)
+plt.xlabel("Nombre de composantes")
+plt.ylabel("Variance cumulée expliquée")
+plt.title("ACP — Variance expliquée cumulée")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig("reports/pca_variance.png", dpi=150)
+plt.close()
+print(f"[OK] Graphique ACP → reports/pca_variance.png")
+
+# Application de l'ACP avec seuil 95% de variance
+# IMPORTANT : on conserve X_train/X_test originaux pour les modèles basés sur les arbres
+# L'ACP est sauvegardée séparément pour usage optionnel
+pca = PCA(n_components=0.95, random_state=42)
+X_train_pca = pca.fit_transform(X_train[num_cols])
+X_test_pca  = pca.transform(X_test[num_cols])
+
+print(f"[OK] ACP appliquée : {len(num_cols)} features → {pca.n_components_} composantes")
+print(f"     Variance expliquée : {pca.explained_variance_ratio_.sum():.4f}")
+
+# Sauvegarde du modèle PCA
+joblib.dump(pca, MODELS_PATH + "pca_model.pkl")
+print(f"[OK] Modèle PCA sauvegardé → {MODELS_PATH}pca_model.pkl")
+
+# ================================
+# 1️⃣6️⃣ Sauvegarde Train/Test
 # ================================
 
 TRAIN_TEST_PATH = "data/train_test/"
@@ -314,7 +371,12 @@ X_test.to_csv(TRAIN_TEST_PATH  + "X_test.csv",  index=False)
 y_train.to_csv(TRAIN_TEST_PATH + "y_train.csv", index=False)
 y_test.to_csv(TRAIN_TEST_PATH  + "y_test.csv",  index=False)
 
+# Sauvegarde des versions PCA (optionnel — pour modèles linéaires ou SVM)
+np.save(TRAIN_TEST_PATH + "X_train_pca.npy", X_train_pca)
+np.save(TRAIN_TEST_PATH + "X_test_pca.npy",  X_test_pca)
+
 print(f"\n[OK] Fichiers sauvegardés dans '{TRAIN_TEST_PATH}'")
 print(f"     X_train : {X_train.shape} | X_test : {X_test.shape}")
+print(f"     X_train_pca : {X_train_pca.shape} | X_test_pca : {X_test_pca.shape}")
 print(f"     y_train : {y_train.shape} | y_test : {y_test.shape}")
 print("\n✅ Pipeline preprocessing terminé avec succès !")
