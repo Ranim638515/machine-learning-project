@@ -1,4 +1,4 @@
-🚀 ChurnSight 
+🚀 ChurnSight — Customer Behavior Analysis & Prediction
 📌 Description
 
 ChurnSight est une solution de Machine Learning dédiée à l’analyse du comportement client dans le secteur du retail.
@@ -11,7 +11,6 @@ Elle permet de transformer les données en décisions stratégiques à travers t
 Le projet implémente un pipeline complet :
 
 Prétraitement → Modélisation → Évaluation → Prédiction → Déploiement (Flask)
-
 ⚙️ Installation
 # Cloner le projet
 git clone https://github.com/Ranim638515/machine-learning-project.git
@@ -29,11 +28,33 @@ source venv/bin/activate
 
 # Installer les dépendances
 pip install -r exigences.txt
+🗂️ Structure du projet
+projet_ml_retail/
+│
+├── data/
+│   ├── raw/              # Données brutes
+│   ├── traitees/         # Données nettoyées
+│   └── train_test/       # Données train/test
+│
+├── notebooks/            # Exploration & prototypage
+│
+├── src/
+│   ├── preprocessing.py  # Nettoyage & feature engineering
+│   ├── train_model.py    # Entraînement & évaluation
+│   ├── predict.py        # Prédictions
+│   └── utils.py          # Fonctions utilitaires
+│
+├── models/               # Modèles sauvegardés (.pkl)
+├── app/                  # Application Flask
+├── reports/              # Graphiques & résultats
+│
+├── exigences.txt         # Dépendances
+├── README.md             # Documentation
+└── .gitignore
 
 ▶️ Utilisation
 🔹 1. Prétraitement
 python src/preprocessing.py
-
 ✔ Nettoyage des données
 ✔ Feature engineering
 ✔ Encodage + normalisation
@@ -41,7 +62,6 @@ python src/preprocessing.py
 
 🔹 2. Entraînement
 python src/train_model.py
-
 ✔ Classification (churn)
 ✔ Régression (valeur client)
 ✔ Clustering (segmentation)
